@@ -1,0 +1,611 @@
+openapi: 3.0.0
+info:
+  title: Project Management API
+  description: Full-stack project management tool REST API
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@projectmanager.com
+
+servers:
+  - url: http://localhost:5000/api
+    description: Development server
+  - url: https://your-domain.com/api
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        avatar: { type: string }
+        role: { type: string, enum: [admin, user] }
+        createdAt: { type: string, format: date-time }
+
+    Project:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        owner: { $ref: '#/components/schemas/User' }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              user: { $ref: '#/components/schemas/User' }
+              role: { type: string, enum: [owner, admin, member] }
+        color: { type: string }
+        isArchived: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Board:
+      type: object
+      properties:
+        _id: { type: string }
+        name: { type: string }
+        project: { type: string }
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              _id: { type: string }
+              name: { type: string }
+              order: { type: integer }
+              color: { type: string }
+        createdBy: { $ref: '#/components/schemas/User' }
+
+    Task:
+      type: object
+      properties:
+        _id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [todo, in_progress, done] }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+        dueDate: { type: string, format: date-time }
+        assignee: { $ref: '#/components/schemas/User' }
+        board: { type: string }
+        order: { type: number }
+        labels: { type: array, items: { type: string } }
+        activityLog:
+          type: array
+          items:
+            type: object
+            properties:
+              user: { $ref: '#/components/schemas/User' }
+              action: { type: string }
+              createdAt: { type: string, format: date-time }
+
+    Comment:
+      type: object
+      properties:
+        _id: { type: string }
+        text: { type: string }
+        task: { type: string }
+        author: { $ref: '#/components/schemas/User' }
+        isEdited: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    ApiResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: { type: object }
+
+    PaginatedResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            pagination:
+              type: object
+              properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                totalPages: { type: integer }
+                hasNextPage: { type: boolean }
+                hasPrevPage: { type: boolean }
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, example: John Doe }
+                email: { type: string, example: john@example.com }
+                password: { type: string, example: secret123 }
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+                      accessToken: { type: string }
+                      refreshToken: { type: string }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: john@example.com }
+                password: { type: string, example: secret123 }
+      responses:
+        '200':
+          description: Login successful
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Token refreshed
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Logged out
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user data
+
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List all projects for current user
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: archived
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Projects list
+    post:
+      tags: [Projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                color: { type: string }
+      responses:
+        '201':
+          description: Project created
+
+  /projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get project by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Project data
+    put:
+      tags: [Projects]
+      summary: Update project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '200':
+          description: Project updated
+    delete:
+      tags: [Projects]
+      summary: Delete project (owner only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Project deleted
+
+  /projects/{id}/invite:
+    post:
+      tags: [Projects]
+      summary: Invite member to project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+                role: { type: string, enum: [admin, member] }
+      responses:
+        '200':
+          description: Member invited
+
+  /boards/project/{projectId}:
+    get:
+      tags: [Boards]
+      summary: Get boards for a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Boards list
+    post:
+      tags: [Boards]
+      summary: Create board in project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+      responses:
+        '201':
+          description: Board created
+
+  /boards/{id}:
+    get:
+      tags: [Boards]
+      summary: Get board by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Board data
+    put:
+      tags: [Boards]
+      summary: Update board
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Board updated
+    delete:
+      tags: [Boards]
+      summary: Delete board
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Board deleted
+
+  /tasks/board/{boardId}:
+    get:
+      tags: [Tasks]
+      summary: Get tasks for a board
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [todo, in_progress, done] }
+        - in: query
+          name: priority
+          schema: { type: string, enum: [low, medium, high, urgent] }
+        - in: query
+          name: assignee
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: Tasks list
+    post:
+      tags: [Tasks]
+      summary: Create task in board
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                status: { type: string }
+                priority: { type: string }
+                dueDate: { type: string, format: date }
+                assignee: { type: string }
+      responses:
+        '201':
+          description: Task created
+
+  /tasks/board/{boardId}/reorder:
+    post:
+      tags: [Tasks]
+      summary: Reorder tasks (drag and drop)
+      parameters:
+        - in: path
+          name: boardId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                updates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      _id: { type: string }
+                      order: { type: number }
+                      columnId: { type: string }
+                      status: { type: string }
+      responses:
+        '200':
+          description: Tasks reordered
+
+  /tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: Get task by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task data
+    put:
+      tags: [Tasks]
+      summary: Update task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task updated
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Task deleted
+
+  /comments/task/{taskId}:
+    get:
+      tags: [Comments]
+      summary: Get comments for a task
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Comments list
+    post:
+      tags: [Comments]
+      summary: Add comment to task
+      parameters:
+        - in: path
+          name: taskId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                mentions: { type: array, items: { type: string } }
+      responses:
+        '201':
+          description: Comment added
+
+  /comments/{id}:
+    put:
+      tags: [Comments]
+      summary: Update comment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+      responses:
+        '200':
+          description: Comment updated
+    delete:
+      tags: [Comments]
+      summary: Delete comment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Comment deleted
+
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+    put:
+      tags: [Users]
+      summary: Update profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                avatar: { type: string }
+      responses:
+        '200':
+          description: Profile updated
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Search users by name or email
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200':
+          description: Users list
