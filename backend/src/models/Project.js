@@ -47,4 +47,6 @@ projectSchema.virtual('boardCount', {
 projectSchema.index({ owner: 1, createdAt: -1 });
 projectSchema.index({ 'members.user': 1 });
 
-export default mongoose.model('Project', projectSchema);
+const Project = mongoose.model('Project', projectSchema)
+
+export default Project;

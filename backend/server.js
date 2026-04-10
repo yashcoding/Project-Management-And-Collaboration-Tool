@@ -4,20 +4,27 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import http from "http";
-import swaggerUi from "swagger-ui-express";
+import rateLimit from "express-rate-limit";
 
 import connectDB from "./src/config/db.js";
 import { initSocket } from "./src/sockets/socket.handler.js";
 import errorHandler from "./src/middleware/errorHandler.js";
 
 import authRoutes from "./src/routes/auth.routes.js";
+import userRoutes from "./src/routes/user.routes.js"
 import projectRoutes from "./src/routes/project.routes.js";
 import boardRoutes from "./src/routes/board.routes.js";
 import taskRoutes from "./src/routes/task.routes.js";
 import commentRoutes from "./src/routes/comment.routes.js";
-
-import swaggerDoc from "./swagger.yaml" assert { type: "json" };
+import fs from "fs";
+import path from "path";
+import YAML from "yaml";
+import swaggerUi from "swagger-ui-express";
 import ExpressMongoSanitize from "express-mongo-sanitize";
+
+const filePath = path.resolve("./swagger.yaml");
+const file = fs.readFileSync(filePath, "utf8");
+const swaggerDoc = YAML.parse(file);
 
 dotenv.config();
 

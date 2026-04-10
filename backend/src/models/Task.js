@@ -74,4 +74,6 @@ taskSchema.index({ board: 1, status: 1, order: 1 });
 taskSchema.index({ project: 1, assignee: 1 });
 taskSchema.index({ title: 'text', description: 'text' });
 
-export default mongoose.model('Task', taskSchema);
+const Task = mongoose.model('Task', taskSchema)
+
+export default Task;

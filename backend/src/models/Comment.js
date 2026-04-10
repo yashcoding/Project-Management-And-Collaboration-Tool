@@ -29,4 +29,7 @@ const commentSchema = new mongoose.Schema({
 
 commentSchema.index({ task: 1, createdAt: 1 });
 
-export default mongoose.model('Comment', commentSchema);
+
+const Comment = mongoose.model('Comment', commentSchema);
+
+export default Comment;

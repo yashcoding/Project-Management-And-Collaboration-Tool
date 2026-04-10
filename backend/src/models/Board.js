@@ -44,4 +44,6 @@ const boardSchema = new mongoose.Schema({
 
 boardSchema.index({ project: 1, createdAt: -1 });
 
-export default mongoose.model('Board', boardSchema);
+const Board = mongoose.model('Board', boardSchema);
+
+export default Board
