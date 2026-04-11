@@ -5,7 +5,6 @@ import AppError from '../utils/AppError.js'
 const register = async ({ name, email, password }) => {
   const existing = await User.findOne({ email });
   if (existing) throw new AppError('Email already registered.', 409);
-
   const user = await User.create({ name, email, password });
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);

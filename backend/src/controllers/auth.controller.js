@@ -1,5 +1,6 @@
 
 import { registerUser, loginUser, userRefreshToken, logoutUser } from "../services/auth.service.js";
+import { successResponse } from "../utils/apiResponse.util.js";
 const register = async (req, res, next) => {
   try {
     const { user, accessToken, refreshToken } = await registerUser(req.body);
