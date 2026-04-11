@@ -20,7 +20,6 @@ import fs from "fs";
 import path from "path";
 import YAML from "yaml";
 import swaggerUi from "swagger-ui-express";
-import ExpressMongoSanitize from "express-mongo-sanitize";
 
 const filePath = path.resolve("./swagger.yaml");
 const file = fs.readFileSync(filePath, "utf8");
@@ -36,7 +35,16 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
-app.use(ExpressMongoSanitize());
+app.use((req, res, next) => {
+  if (req.query) {
+    for (let key in req.query) {
+      if (key.includes('$') || key.includes('.')) {
+        delete req.query[key];
+      }
+    }
+  }
+  next();
+});
 
 // CORS
 app.use(cors({
@@ -51,6 +59,7 @@ const limiter = rateLimit({
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api/', limiter);
+
  
 // Body parsing
 app.use(express.json({ limit: '10kb' }));
